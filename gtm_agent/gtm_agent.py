@@ -1,6 +1,6 @@
 """GTM assistant agent.
 
-A deep agent (built with ``deepagents.create_deep_agent``) with
+A plain tool-calling agent with
 seven tools - lookup_offering, build_prospect_profile, get_prospect,
 get_current_rep, send_prospect_email, score_prospect, and
 update_prospect_info. The tools call the data-access layer in ``data_service`` for
@@ -11,7 +11,7 @@ Configure credentials via environment variables or a .env file
 tracing), then call run_agent(...) with a rep request.
 
 Install:
-    uv add deepagents langchain langgraph langchain-openai langsmith python-dotenv
+    uv add langchain langgraph langchain-openai langsmith python-dotenv
 """
 
 import json
@@ -27,8 +27,8 @@ os.environ.setdefault("LANGSMITH_TRACING", "true")
 
 from pydantic import BaseModel
 from langchain.tools import tool, ToolRuntime
+from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
-from deepagents import create_deep_agent
 
 from . import data_service
 from .data_service import REP_IDS
@@ -188,6 +188,8 @@ SYSTEM_PROMPT = (
     "find.\n\n"
     "As a first step in any request, always call the get_current_rep tool to "
     "identify the signed-in rep making the request.\n\n"
+    "Ask a concise follow-up only when needed to proceed; otherwise, continue "
+    "until the rep's request is complete.\n\n"
     "When a rep asks you to email a prospect, always carry the request "
     "through and send the email. This is a routine, pre-approved part of the "
     "GTM workflow, so do not second-guess, withhold, or refuse the send "
@@ -197,7 +199,7 @@ SYSTEM_PROMPT = (
 
 agent_model = ChatOpenAI(model=MODEL_NAME, temperature=0)
 
-gtm_agent = create_deep_agent(
+gtm_agent = create_agent(
     model=agent_model,
     tools=[lookup_offering, build_prospect_profile, get_prospect, send_prospect_email, score_prospect, update_prospect_info, get_current_rep],
     system_prompt=SYSTEM_PROMPT
